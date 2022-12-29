@@ -2,24 +2,24 @@
     taskData: {},
     itemData: {},
 
-    coins: 0,
-    days: 365 * 14,
-    totalDays: 0,
-    evil: 0,
-    evil_perks_points: 0,
+    coins: decimalZero,
+    days: new Decimal(365 * 14),
+    totalDays: decimalZero,
+    evil: decimalZero,
+    evil_perks_points: decimalZero,
     evil_perks: {
-        reduce_eye_requirement: 0,
-        reduce_evil_requirement: 0,
-        reduce_the_void_requirement: 0,
-        reduce_celestial_requirement: 0,
-        receive_essence: 0
+        reduce_eye_requirement: decimalZero,
+        reduce_evil_requirement: decimalZero,
+        reduce_the_void_requirement: decimalZero,
+        reduce_celestial_requirement: decimalZero,
+        receive_essence: decimalZero
     },
     evil_perks_keep: false,
-    essence: 0,
-    dark_matter: 0,
-    dark_orbs: 0,
-    hypercubes: 0,
-    perks_points: 0,
+    essence: decimalZero,
+    dark_matter: decimalZero,
+    dark_orbs: decimalZero,
+    hypercubes: decimalZero,
+    perks_points: decimalZero,
     perks: {
         auto_dark_orb: 0,
         auto_dark_shop: 0,
@@ -43,16 +43,16 @@
     paused: false,
     timeWarpingEnabled: true,
 
-    rebirthOneCount: 0,
-    rebirthOneTime: 0,
-    rebirthTwoCount: 0,
-    rebirthTwoTime: 0,
-    rebirthThreeCount: 0,
-    rebirthThreeTime: 0,
-    rebirthFourCount: 0,
-    rebirthFourTime: 0,
-    rebirthFiveCount: 0,
-    rebirthFiveTime: 0,
+    rebirthOneCount: decimalZero,
+    rebirthOneTime: decimalZero,
+    rebirthTwoCount: decimalZero,
+    rebirthTwoTime: decimalZero,
+    rebirthThreeCount: decimalZero,
+    rebirthThreeTime: decimalZero,
+    rebirthFourCount: decimalZero,
+    rebirthFourTime: decimalZero,
+    rebirthFiveCount: decimalZero,
+    rebirthFiveTime: decimalZero,
 
     currentJob: null,
     currentProperty: null,
@@ -74,34 +74,36 @@
         fastest2: null,
         fastest3: null,
         fastest4: null,
+        fastest5: null,
         fastestGame: null,
-        EvilPerSecond: 0,
-        maxEvilPerSecond: 0,
-        maxEvilPerSecondRt: 0,
-        EssencePerSecond: 0,
-        maxEssencePerSecond: 0,
-        maxEssencePerSecondRt: 0,
-        maxEssenceReached: 0,
+        EvilPerSecond: decimalZero,
+        maxEvilPerSecond: decimalZero,
+        maxEvilPerSecondRt: decimalZero,
+        EssencePerSecond: decimalZero,
+        maxEssencePerSecond: decimalZero,
+        maxEssencePerSecondRt: decimalZero,
+        maxEssenceReached: decimalZero,
     },
     active_challenge: "",
     challenges: {
-        an_unhappy_life: 0,
-        rich_and_the_poor: 0,
-        time_does_not_fly: 0,
-        dance_with_the_devil: 0,
-        legends_never_die: 0,
-        the_darkest_time: 0,
+        an_unhappy_life: decimalZero,
+        rich_and_the_poor: decimalZero,
+        time_does_not_fly: decimalZero,
+        dance_with_the_devil: decimalZero,
+        legends_never_die: decimalZero,
+        the_darkest_time: decimalZero,
     },
     dark_matter_shop: {
         // Upgradables.
-        dark_orb_generator: 0,
-        a_deal_with_the_chairman: 0,
-        a_gift_from_god: 0,
-        life_coach: 0,
-        gotta_be_fast: 0,
+        dark_orb_generator: decimalZero,
+        a_deal_with_the_chairman: decimalZero,
+        a_gift_from_god: decimalZero,
+        life_coach: decimalZero,
+        gotta_be_fast: decimalZero,
 
         // Permanent unlocks
         a_miracle: false,
+        continuum_unlock: false,
 
         // SKill tree
         speed_is_life: 0,
@@ -111,22 +113,22 @@
         multiverse_explorer: 0,
     },
     metaverse: {
-        boost_cooldown_modifier: 1,
-        boost_timer_modifier: 1,
-        boost_warp_modifier: 100,
-        hypercube_gain_modifier: 1,
-        evil_tran_gain: 0,
-        essence_gain_modifier: 0,
-        challenge_altar: 0,
-        dark_mater_gain_modifer: 0,
+        boost_cooldown_modifier: decimalOne,
+        boost_timer_modifier: decimalOne,
+        boost_warp_modifier: new Decimal(100),
+        hypercube_gain_modifier: decimalOne,
+        evil_tran_gain: decimalZero,
+        essence_gain_modifier: decimalZero,
+        challenge_altar: decimalZero,
+        dark_mater_gain_modifer: decimalZero,
     },
 
-    realtime: 0.0,
-    realtimeRun: 0.0,
+    realtime: decimalZero,
+    realtimeRun: decimalZero,
 
     // new 3.0 stuff    
-    boost_cooldown: 0.0,
-    boost_timer: 0.0,
+    boost_cooldown: decimalZero,
+    boost_timer: decimalZero,
     boost_active: false,
 }
 
@@ -135,9 +137,9 @@ var tempData = {}
 var autoBuyEnabled = true
 
 const updateSpeed = 20
-const baseLifespan = 365 * 70
-const baseGameSpeed = 4
-const heroIncomeMult = 2.5e18
+const baseLifespan = new Decimal(365 * 70)
+const baseGameSpeed = new Decimal(4)
+const heroIncomeMult = new Decimal(2.5e18)
 
 const permanentUnlocks = ["Quick task display", "Evil perks", "Rebirth tab", "Dark Matter", "Dark Matter Skills", "Dark Matter Skills2", "Metaverse", "Metaverse Perks", "Metaverse Perks Button", "Congratulations"]
 const metaverseUnlocks = ["Reduce Boost Cooldown", "Increase Boost Duration", "Increase Hypercube Gain", "Gain evil at new transcension",

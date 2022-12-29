@@ -1,186 +1,27 @@
+// Universal decimal constants
+var decimalZero = Decimal.dZero;
+var decimalOne = Decimal.dOne;
+
 function softcap(value, cap, power = 0.5) {
-    if (value <= cap) return value
-
-    return Math.pow(value, power) * Math.pow(cap, 1 - power)
-}
-
-function format(number, decimals = 1) {
-    const units = ["", "k", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "O", "N", "D", "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Od", "Nd", "V", "Uv", "Dv", "Tv",
-    "Qav", "Qiv", "Sxv", "Spv", "Ov", "Nv", "Tr", "Ut", "Dt", "Tt"]
-
-    // what tier? (determines SI symbol)
-    const tier = Math.log10(number) / 3 | 0;
-    if (tier <= 0) return math.floor(number, decimals).toFixed(decimals);
-
-    if ((gameData.settings.numberNotation == 0 || tier < 3) && (tier < units.length)) {
-        const suffix = units[tier];
-        const scale = Math.pow(10, tier * 3);
-        const scaled = number / scale;
-        return math.floor(scaled, decimals).toFixed(decimals) + suffix;
-    } else {
-        if (gameData.settings.numberNotation == 1) {
-            const exp = Math.log10(number) | 0;
-            const scale = Math.pow(10, exp);
-            const scaled = number / scale;
-            return math.floor(scaled, decimals).toFixed(decimals) + "e" + exp;
-        }
-        else {
-            const exp = Math.log10(number) / 3 | 0;
-            const scale = Math.pow(10, exp * 3);
-            const scaled = number / scale;
-            return math.floor(scaled, decimals).toFixed(decimals) + "e" + exp * 3;
-        }
-    }
-}
-
-function getCoinsData() {
-    switch (gameData.settings.currencyNotation) {
-        case 0: return [
-            { "name": "p", "color": "#79b9c7", "value": 1e6 },
-            { "name": "g", "color": "#E5C100", "value": 10000 },
-            { "name": "s", "color": "#a8a8a8", "value": 100 },
-            { "name": "c", "color": "#a15c2f", "value": 1 },
-        ];
-        case 1: return [
-            { "name": " 𒀱", "color": "#ffffff", "value": 1e62, "class": "currency-shadow-rainbow" },
-            { "name": " 𒀱", "color": "#ffffff", "value": 1e47, "class": "currency-shadow" },
-            { "name": " 𒇫", "color": "#66ccff", "value": 1e41, "class": "currency-shadow" },
-            { "name": "🜊", "color": "#00ff00", "value": 1e35, "class": "currency-bold" },
-            { "name": "✹", "color": "#ffffcc", "value": 1e30 },
-            { "name": "∰", "color": "#ff0083", "value": 1e26 },
-            { "name": "Φ", "color": "#27b897", "value": 1e23 },
-            { "name": "Ξ", "color": "#cd72ff", "value": 1e20 },
-            { "name": "Δ", "color": "#f5c211", "value": 1e17 },
-            { "name": "d", "color": "#ffffff", "value": 1e14 },
-            { "name": "r", "color": "#ed333b", "value": 1e12 },
-            { "name": "S", "color": "#6666ff", "value": 1e10 },
-            { "name": "e", "color": "#2ec27e", "value": 1e8 },
-            { "name": "p", "color": "#79b9c7", "value": 1e6 },
-            { "name": "g", "color": "#E5C100", "value": 10000 },
-            { "name": "s", "color": "#a8a8a8", "value": 100 },
-            { "name": "c", "color": "#a15c2f", "value": 1 },
-        ];
-        case 2: return [
-            { "name": "", "color": "#E5C100", "value": 240, "prefix": "£" },
-            { "name": "s", "color": "#a8a8a8", "value": 12 },
-            { "name": "d", "color": "#a15c2f", "value": 1 },
-        ];
-        default: throw new Error("Invalid currency notation set");
-    }
-}
-
-function formatWhole(number, decimals = 1) {
-    if (number >= 1e3 || (number <= 0.99 && number != 0)) {
-        return format(number, decimals)
-    }
-    return format(number, 0);
-}
-
-function formatCoins(coins, element) {
-    for (const c of element.children) {
-        c.textContent = "";
-    }
-
-    switch (gameData.settings.currencyNotation) {
-        case 0:
-        case 1:
-        case 2:
-            const money2 = getCoinsData()
-
-            let coinsUsed = 0
-            for (let i = 0; i < money2.length; i++) {
-                const m = money2[i];
-                const prev = money2[i - 1];
-                const diff = prev ? prev.value / m.value : Infinity;
-                const amount = Math.floor(coins / m.value) % diff;
-                if ((amount > 0 || (coins < 1 && m.value == 1))) {
-                    element.children[coinsUsed].textContent = (m.prefix ?? "") + format(amount, amount < 1000 ? 0 : 2) + m.name
-                    element.children[coinsUsed].style.color = m.color
-                    element.children[coinsUsed].className = m.class ? m.class : ""
-                    coinsUsed++
-                }
-                if (coinsUsed >= 2 || amount >= 100) break;
-            }
-            break;
-        case 3:
-            element.children[0].textContent = "$" + format(coins / 100, 2)
-            element.children[0].style.color = "#E5C100"
-            element.children[0].className = ""
-            break;
-        default:
-            throw new Error("Invalid currency notation set");
-    }
-}
-
-function formatTime(sec_num, show_ms = false) {
-    if (sec_num == null) {
-        return "unknown"
-    }
-    if (sec_num < 0) {
-        return '-' + formatTime(-sec_num, show_ms)
-    }
-
-    if (sec_num >= 31536000) {
-        let years = Math.floor(sec_num / 31536000)
-        if (years >= 1000) {
-            return formatWhole(years) + ' years'
-        }
-        return years + 'y ' + formatTime(sec_num % 31536000, show_ms)
-    }
-    if (sec_num >= 86400) {
-        let days = Math.floor(sec_num / 86400)
-        return days + 'd ' + formatTime(sec_num % 86400, show_ms)
-    }
-
-    let hours = Math.floor(sec_num / 3600)
-    let minutes = Math.floor((sec_num - (hours * 3600)) / 60)
-    let seconds = Math.floor(sec_num - (hours * 3600) - (minutes * 60))
-    let ms = Math.floor((sec_num - Math.floor(sec_num)) * 1000)
-    let mss = (show_ms ? "." + ms.toString().padStart(3, "0") : "")
-
-    if (hours < 10) hours = "0" + hours
-    if (minutes < 10) minutes = "0" + minutes
-    if (seconds < 10) seconds = "0" + seconds
-    return (sec_num > 3600 ? hours + ':' : "") + minutes + ':' + seconds + mss
-}
-
-function formatTreshold(number, decimals = 1, treshold = 100000) {
-    if (number < treshold)
-        return Math.floor(number)
-    else
-        return format(number, decimals)
-}
-
-function formatLevel(level) {
-    if (level >= 100000)
-        return format(level)
-
-    return level.toLocaleString()
-}
-
-function formatAge(days) {
-    const years = daysToYears(days)
-    const day = getCurrentDay(days)
-    if (years > 10000)
-        return "Age " + format(years)
-    else
-        return "Age " + years + " Day " + day
+    if (Decimal.lte(value, cap)) return value
+    
+    return Decimal.pow(value, power).times(Decimal.pow(cap, decimalOne.sub(power)))
 }
 
 function getBaseLog(x, y) {
-    return Math.log(y) / Math.log(x);
+    return y.log(x);
 }
 
 function yearsToDays(years) {
-    return years * 365
+    return Decimal.times(years, 365)
 }
 
 function daysToYears(days) {
-    return Math.floor(days / 365)
+    return Decimal.floor(Decimal.div(days, 365))
 }
 
 function getCurrentDay(days) {
-    return Math.floor(days - daysToYears(days) * 365)
+    return Decimal.floor(days.sub(daysToYears(days).times(365)))
 }
 
 function getElementsByClass(className) {
@@ -195,50 +36,47 @@ function removeStrangeCharacters(string) {
     return string.replace(/'/g, "")
 }
 
-function bigIntToExponential(value) {
-    if(typeof value !== 'bigint') throw new Error("Argument must be a bigint, but a " + (typeof value) + " was supplied.");
+function getGeneralProgressRepresentation(x) {
+    // F notation
+    if (x.gte("eeee10")) {
+        let slog = x.slog();
+        if (slog.gte(10000)) {
+            return getGeneralProgressRepresentation(slog);
+        }
+        return Decimal.pow(10, slog.sub(slog.floor())).div(10);
+    }
 
-    const isNegative = value < 0;
-    if (isNegative) value = -value; // Using the absolute value for the digits.
+    // 1e10000 and up
+    if (x.gte("1e10000")) {
+        return getGeneralProgressRepresentation(x.log10());
+    }
 
-    const str = value.toString();
-
-    const exp = str.length - 1;
-    if (exp == 0) return (isNegative ? "-" : '') + str + "e0";
-
-    const mantissaDigits = str.replace(/(0+)$/, ''); // Remove any mathematically insignificant zeroes.
-
-    // Use the single first digit for the integral part of the mantissa
-    const mantissa = mantissaDigits.charAt(0);
-
-    return (isNegative ? "-" : '') + mantissa + "e" + exp.toString();
+    // Below 1e10000
+    let bestValue = Decimal.pow(10, x.log10().ceil());
+    return x.div(bestValue).max(0).min(1);
 }
 
-function exponentialToRawNumberString(value) {
-    if (value == "" || value.length == 0)
-        return "0"
-
-    const split = value.split("e")
-    const first = split[0]
-    const exponent = Number(split[1])
-
-    return first + [...Array(exponent)].map(() => "0").join("")
+function getTaskProgress(task) {
+    if (gameData.dark_matter_shop.continuum_unlock)
+        return task.level.lt(100000) ? task.continuumLevel.sub(task.level.floor()).max(0).min(1).toNumber() : getGeneralProgressRepresentation(task.level).toNumber()
+    else
+        return task.xp.div(task.getMaxXp()).max(0).min(1).toNumber()
 }
 
 function getChallengeTaskGoalProgress(taskName) {
     if (!Object.keys(gameData.taskData).includes(taskName))
         return 0
     if (gameData.taskData[taskName].isHero)
-        return gameData.taskData[taskName].level * 1000
+        return gameData.taskData[taskName].getLevel().times(1000)
     else
-        return gameData.taskData[taskName].level
+        return gameData.taskData[taskName].getLevel()
 }
 
 function getFormattedChallengeTaskGoal(taskName, level) {
-    if (level < 100000)
+    if (level.lt(100000))
         return taskName + " lvl " + formatLevel(level)
     else
-        return "Great " + taskName + " lvl " + formatLevel(Math.ceil(level / 1000))
+        return "Great " + taskName + " lvl " + formatLevel(gameData.dark_matter_shop.continuum_unlock ? level.div(1000) : Decimal.ceil(level.div(1000)))
 }
 
 function getFormattedTitle(parameter) {    
@@ -246,4 +84,26 @@ function getFormattedTitle(parameter) {
     title = title.charAt(0).toUpperCase() + title.slice(1)
 
     return title
+}
+
+// Dilation function from https://github.com/pg132/The-Modding-Tree/blob/dad320034747d6bea25b00c6e83d7dac3daf75c7/js/layers.js
+function dilate(x, exponent, base = 10){
+    if (x.lt(base)) return x
+    return Decimal.pow(base, x.log(base).pow(exponent))
+}
+
+// Slog functions from https://github.com/c0v1d-9119361/The-Plague-Tree/blob/b265ac41d17321bc71d5673fb60eaad20a5ae31c/js/math.js
+function slog(n){
+    n = new Decimal(n)
+    return Decimal.add(n.layer,new Decimal(n.mag).slog())
+}
+
+function slogadd(n,add){
+    n = new Decimal(n)
+    return Decimal.tetrate(10,slog(n).add(add))
+}
+
+function tet10(n){
+    n = new Decimal(n)
+    return Decimal.tetrate(10,n)
 }

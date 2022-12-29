@@ -2,10 +2,10 @@ class Task {
     constructor(baseData) {
         this.baseData = baseData
         this.name = baseData.name
-        this.level = 0
-        this.maxLevel = 0
-        this.xp = 0
-        this.xpBigInt = BigInt(0)
+        this.level = decimalZero
+        this.continuumLevel = decimalZero
+        this.maxLevel = decimalZero
+        this.xp = decimalZero
         this.isHero = false
         this.isFinished = false
         this.unlocked = false
@@ -20,9 +20,9 @@ class Task {
             baseData: this.baseData,
             name: this.name,
             level: this.level,
+            continuumLevel: this.continuumLevel,
             maxLevel: this.maxLevel,
             xp: this.xp,
-            xpBigInt: bigIntToExponential(this.xpBigInt),
             isHero: this.isHero,
             isFinished: this.isFinished,
             unlocked: this.unlocked
@@ -30,112 +30,146 @@ class Task {
     }
 
     getMaxXp() {
-        const maxXp = (this.isHero ? Math.pow(10, this.baseData.heroxp) : 1) * this.baseData.maxXp * (this.level + 1) * Math.pow(this.isHero ? 1.08 : 1.01, this.level)
+        let maxXp = new Decimal(this.baseData.maxXp).times(Decimal.add(this.level, 1));
+        if (this.isHero)
+            maxXp = maxXp.times(Decimal.pow10(this.baseData.heroxp)).times(Decimal.pow(1.08, this.level));
+        else
+            maxXp = maxXp.times(Decimal.pow(1.01, this.level));
+        
+        // Cap max XP at 1.798e308, but add further scaling past this value
+        if (maxXp.gt(Number.MAX_VALUE)) {
+            maxXp = new Decimal(Number.MAX_VALUE).times(Decimal.pow(2, this.level.div(120))).times(Decimal.pow(2, Decimal.div(this.baseData.heroxp, 9)))
+        }
 
-        if (isNaN(maxXp) || maxXp == Infinity || maxXp > 1e305) {
-            this.isFinished = true
+        if (!Decimal.isFinite(maxXp)) {
+            console.log("Invalid max XP value: " + maxXp);
+            throw new Error("NaN/inf detected in getMaxXp for task " + (this.isHero ? "Great " : " ") + task.name + " level " + task.level);
         }
 
         return maxXp
     }
-
-    getMaxBigIntXp() {
-        const maxXp = this.getMaxXp() == Infinity ? BigInt(1e305) : BigInt(Math.floor(this.getMaxXp()));
-
-        if (maxXp < 1e305)
-            return maxXp
-
-        return maxXp * 2n ** (BigInt(this.level) / 120n) * (2n ** (BigInt(this.baseData.heroxp) / 9n))
+    
+    getContinuumLevel() {
+        /*
+         * Max XP formula (before Heroes):
+         * Y = A * (X + 1) * (1.01^X)
+         * 
+         * Max XP formula (after Heroes but before 1.798e308 XP):
+         * Y = A * 10^B * (X + 1) * (1.08^X)
+         * 
+         * Max XP formula (after 1.798e308 XP):
+         * Y = 2^1024 * 2^(X/120) * 2^(B/9)
+         * Y = 2^(1024 + X/120 + B/9)
+         * 
+         * Inverse of the Max XP formula (before Heroes):
+         * X = ProductLog[Y/A * 1.01 * Log[1.01]]/Log[1.01]
+         * X ≈ 100.49917080713044 * ProductLog[0.010049834161699772 * Y / A]
+         * 
+         * Inverse of the Max XP formula (after Heroes but before 1.798e308 XP):
+         * X = ProductLog[Y/(A * 10^B) * 1.08 * Log[1.08]]/Log[1.08]
+         * X ≈ 12.993587212927691 * ProductLog[0.08311792442701867 * Y / (A * 10^B)]
+         * 
+         * Inverse of the Max XP formula (after 1.798e308 XP):
+         * X = 40 ((B + 9216) (-Log[2]) + 9 Log[Y]) / Log[8]
+         * X ≈ 19.235933878519514 * (-0.6931471805599453 * (9216 + B) + 9 * Log[Y])
+         *
+         * Where:
+         * Y = this.getMaxXP() output
+         * X = this.level
+         * A = this.baseData.maxXp
+         * B = this.baseData.heroxp
+         * ProductLog is the lambert W function
+         * Log is the natural logarithm
+         * Inverse formulas computed with Mathematica
+         */
+        let baseContinuumLevel = decimalZero
+        if (this.isHero)
+            baseContinuumLevel = this.xp.div(Decimal.pow10(this.baseData.heroxp).times(this.baseData.maxXp)).times(0.08311792442701867).lambertw().times(12.993587212927691)
+        else
+            baseContinuumLevel = this.xp.div(this.baseData.maxXp).times(0.010049834161699772).lambertw().times(100.49917080713044)
+        
+        let scaledContinuumLevel = this.xp.ln().times(9).add(Decimal.add(9216, this.baseData.heroxp).times(-0.6931471805599453)).times(19.235933878519514)
+        
+        return baseContinuumLevel.max(scaledContinuumLevel).max(0)
+    }
+    
+    getLevel() {
+        if (gameData.dark_matter_shop.continuum_unlock)
+            return this.continuumLevel
+        else
+            return this.level
     }
 
     getXpLeft() {
-        return this.getMaxXp() - this.xp
+        return this.getMaxXp().sub(this.xp)
     }
 
     getMaxLevelMultiplier() {
         if (gameData.active_challenge == "dance_with_the_devil" || gameData.active_challenge == "the_darkest_time") {
-           return (10 / (this.maxLevel + 1))
+            return Decimal.div(10, Decimal.add(this.maxLevel, 1));
         }
         else {
             let effect = gameData.taskData['Cosmic Recollection'].getEffect();
-            effect = effect == 0 ? 1 : effect
-            return (this.baseData.heroxp < 1000) ? 1 + this.maxLevel / 10 : 1 + this.maxLevel / effect
+            if (Decimal.eq(effect, 0))
+                effect = decimalOne
+            return (this.baseData.heroxp < 1000) ? Decimal.div(this.maxLevel, 10).add(1) : Decimal.div(this.maxLevel, effect).add(1);
         }
     }
 
     getXpGain() {
-        return (this.isHero ? getHeroXpGainMultipliers(this) : 1) * applyMultipliers(10, this.xpMultipliers)
-    }
-
-    getXpGainBigInt() {
-        let xpGain = BigInt(Math.floor(this.isHero ? getHeroXpGainMultipliers(this) : 1))
-
-        this.xpMultipliers.forEach(multiplier => {
-            xpGain *= BigInt(Math.ceil(multiplier()))
-        })
-
-        return xpGain
+        let ret = decimalOne;
+        
+        if (this.isHero)
+            ret = ret.times(getHeroXpGainMultipliers(this));
+        
+        ret = ret.times(applyMultipliers(10, this.xpMultipliers));
+        
+        return ret;
     }
 
     getXpGainFormatted() {
-        if (this.isFinished)
-            return bigIntToExponential(this.getXpGainBigInt())
         return format(this.getXpGain())
     }
 
     getXpLeftFormatted() {
-        if (this.isFinished)
-            return bigIntToExponential(this.getMaxBigIntXp() - this.xpBigInt)
-        return format(this.getXpLeft())
+        if (gameData.dark_matter_shop.continuum_unlock)
+            return format(this.xp)
+        else
+            return format(this.getXpLeft())
     }
 
     increaseXp() {
         if (this.isFinished) {
-            this.xpBigInt += applySpeedOnBigInt(this.getXpGainBigInt())
-
-            if (this.xpBigInt >= this.getMaxBigIntXp()) {
-                let excess = this.xpBigInt - this.getMaxBigIntXp()
-
-                let iterations = 0
-                while (excess >= 0n) {
-                    iterations += 1
-
-                    // This amount is way lower because calculations with a BigInt are really expensive.
-                    // Probably want to look into more optimizations.
-                    if (iterations > 300)
-                        excess = -1n
-
-                    this.level += 1
-                    this.unlocked = true
-                    excess -= this.getMaxBigIntXp()
-                }
-                this.xpBigInt = this.getMaxBigIntXp() + excess
+            return;
+        }
+        
+        if (gameData.dark_matter_shop.continuum_unlock) {
+            this.xp = this.xp.add(applySpeed(this.getXpGain()))
+            this.continuumLevel = this.getContinuumLevel()
+            this.level = this.continuumLevel.floor()
+            this.unlocked = true
+            if (!Decimal.isFinite(this.level)) {
+                console.log("Invalid task level value: " + task.level);
+                throw new Error("NaN/inf detected in task level for task " + (this.isHero ? "Great " : " ") + task.name + " level " + task.level);
             }
-        } else {
-            this.xp += applySpeed(this.getXpGain())
-
-            if (this.xp > 1e275 || isNaN(this.xp) || this.xp == Infinity || this.getXpGain() == Infinity
-                || this.getMaxXp() == Infinity || this.getXpLeft() == Infinity) {
-                this.isFinished = true
-                return
+            return;
+        }
+        
+        this.xp = this.xp.add(applySpeed(this.getXpGain()))
+        
+        if (this.xp.gt(this.getMaxXp())) {
+            let excess = this.xp.sub(this.getMaxXp())
+            let levelsGained = 0
+            // Don't level up a hero or skill more than 100 times per tick.
+            // Working with Decimals is much slower than working with Numbers and uncapping this without further optimizations may cause huge lag spikes.
+            // To level things up faster, use the continuum mechanic which is unlocked at 10 Dark Matter.
+            while (excess.gte(0) && levelsGained < 100) {
+                this.level = this.level.round().add(1);
+                levelsGained++
+                this.unlocked = true
+                excess = excess.sub(this.getMaxXp());
             }
-
-            if (this.xp >= this.getMaxXp()) {
-                let excess = this.xp - this.getMaxXp()
-
-                let iterations = 0
-                while (excess >= 0) {
-                    iterations += 1
-
-                    if (iterations > 2500)
-                        excess = -1
-
-                    this.level += 1
-                    this.unlocked = true
-                    excess -= this.getMaxXp()
-                }
-                this.xp = this.getMaxXp() + excess
-            }
+            this.xp = this.getMaxXp().add(excess).min(this.getMaxXp());
         }
     }
 
@@ -172,16 +206,22 @@ class Job extends Task {
     }
 
     getLevelMultiplier() {
-        return 1 + Math.log10(this.level + 1)
+        return Decimal.add(this.getLevel(), 1).log10().add(1)
     }
 
     getIncome() {
-        const income = (this.isHero ? heroIncomeMult
-            * (this.baseData.heroxp > 78 ? 1e6 : 1)
-            * (this.baseData.heroxp > 130 ? 1e5 : 1)
-            : 1) * applyMultipliers(this.baseData.income, this.incomeMultipliers) * getChallengeBonus("rich_and_the_poor")
+        let income = decimalOne;
+        
+        income = income.times(applyMultipliers(this.baseData.income, this.incomeMultipliers));
+        income = income.times(getChallengeBonus("rich_and_the_poor"));
+        if (this.isHero) {
+            income = income.times(heroIncomeMult).times(this.baseData.heroxp > 78 ? 1e6 : 1).times(this.baseData.heroxp > 130 ? 1e5 : 1);
+        }
+        if (gameData.active_challenge == "rich_and_the_poor" || gameData.active_challenge == "the_darkest_time") {
+            income = Decimal.pow(income, 0.35);
+        }
 
-        return gameData.active_challenge == "rich_and_the_poor" || gameData.active_challenge == "the_darkest_time" ? Math.pow(income, 0.35) : income
+        return income
     }
 }
 
@@ -191,7 +231,12 @@ class Skill extends Task {
     }
 
     getEffect() {
-        var effect = 1 + this.baseData.effect * (this.isHero ? 1000 * this.level + 8000 : this.level)
+        let effectiveLevel = new Decimal(this.getLevel());
+        if (this.isHero) {
+            effectiveLevel = effectiveLevel.times(1000).add(8000);
+        }
+        
+        let effect = effectiveLevel.times(this.baseData.effect).add(1);
         return effect
     }
 
@@ -210,13 +255,13 @@ class Item {
     }
 
     getEffect() {
-        let effect = this.baseData.effect
+        let effect = new Decimal(this.baseData.effect);
 
         if (this.isHero) {
             if (itemCategories["Misc"].includes(this.name))
             {
                 if (gameData.currentMisc.includes(this)) {
-                    effect *= this.baseData.heroeffect                    
+                    effect = effect.times(this.baseData.heroeffect)
                     this.unlocked = true
                 }
             }
@@ -227,11 +272,11 @@ class Item {
                     this.unlocked = true
                 }
                 else
-                    effect = 1
+                    effect = decimalOne
             }
         } else {
             if (gameData.currentProperty != this && !gameData.currentMisc.includes(this))
-                return 1
+                return decimalOne
             else
                 this.unlocked = true
         }
@@ -241,16 +286,16 @@ class Item {
 
     getEffectDescription() {
         let description = this.baseData.description
-        let effect = this.baseData.effect
+        let effect = new Decimal(this.baseData.effect)
 
         if (this.isHero) {
             if (itemCategories["Misc"].includes(this.name)) {
-                effect *= this.baseData.heroeffect
+                effect = effect.times(this.baseData.heroeffect)
             }
 
             if (itemCategories["Properties"].includes(this.name)) {
                 description = "Happiness"
-                effect = this.baseData.heroeffect
+                effect = new Decimal(this.baseData.heroeffect)
             }
         }
         else {
@@ -261,10 +306,16 @@ class Item {
     }
 
     getExpense(heroic) {
+        let expense = applyMultipliers(this.baseData.expense, this.expenseMultipliers);
+
         if (heroic === undefined)
             heroic = this.isHero
-        return (heroic ? 4 * Math.pow(10, this.baseData.heromult) * heroIncomeMult : 1)
-            * applyMultipliers(this.baseData.expense, this.expenseMultipliers)
+        
+        if (heroic) {
+            expense = expense.times(heroIncomeMult).times(4).times(Decimal.pow(10, this.baseData.heromult));
+        }
+        
+        return expense;
     }
 }
 
@@ -311,11 +362,11 @@ class TaskRequirement extends Requirement {
 
     getCondition(isHero, requirement) {
         if (isHero && requirement.herequirement != null)
-            return gameData.taskData[requirement.task].level >= requirement.herequirement
+            return Decimal.gte(gameData.taskData[requirement.task].level, requirement.herequirement)
         else if (gameData.taskData[requirement.task].isHero && requirement.isHero)
             return true
         else
-            return gameData.taskData[requirement.task].level >= requirement.requirement
+            return Decimal.gte(gameData.taskData[requirement.task].level, requirement.requirement)
     }
 }
 
@@ -326,7 +377,7 @@ class CoinRequirement extends Requirement {
     }
 
     getCondition(isHero, requirement) {
-        return gameData.coins >= requirement.requirement
+        return gameData.coins.gte(requirement.requirement)
     }
 }
 
@@ -337,7 +388,7 @@ class AgeRequirement extends Requirement {
     }
 
     getCondition(isHero, requirement) {
-        return daysToYears(gameData.days) >= requirement.requirement
+        return daysToYears(gameData.days).gte(requirement.requirement)
     }
 }
 
@@ -348,7 +399,7 @@ class EvilRequirement extends Requirement {
     }
 
     getCondition(isHero, requirement) {
-        return gameData.evil >= requirement.requirement
+        return gameData.evil.gte(requirement.requirement)
     }
 }
 
@@ -362,9 +413,9 @@ class EssenceRequirement extends Requirement {
         //return gameData.essence >= requirement.requirement
 
         if (isHero && requirement.herequirement != null)
-            return gameData.essence >= requirement.herequirement
+            return gameData.essence.gte(requirement.herequirement)
         else
-            return gameData.essence >= requirement.requirement
+            return gameData.essence.gte(requirement.requirement)
 
     }
 }
@@ -376,7 +427,7 @@ class DarkMatterRequirement extends Requirement {
     }
 
     getCondition(isHero, requirement) {
-        return gameData.dark_matter >= requirement.requirement
+        return gameData.dark_matter.gte(requirement.requirement)
     }
 }
 
@@ -387,7 +438,7 @@ class DarkOrbsRequirement extends Requirement {
     }
 
     getCondition(isHero, requirement) {
-        return gameData.dark_orbs >= requirement.requirement
+        return gameData.dark_orbs.gte(requirement.requirement)
     }
 }
 
@@ -398,7 +449,7 @@ class MetaverseRequirement extends Requirement {
     }
 
     getCondition(isHero, requirement) {
-        return gameData.rebirthFiveCount >= requirement.requirement
+        return gameData.rebirthFiveCount.gte(requirement.requirement)
     }
 }
 
@@ -409,7 +460,7 @@ class HypercubeRequirement extends Requirement {
     }
 
     getCondition(isHero, requirement) {
-        return gameData.hypercubes >= requirement.requirement
+        return gameData.hypercubes.gte(requirement.requirement)
     }
 }
 
@@ -420,6 +471,6 @@ class PerkPointRequirement extends Requirement {
     }
 
     getCondition(isHero, requirement) {
-        return gameData.perks_points >= requirement.requirement
+        return gameData.perks_points.gte(requirement.requirement)
     }
 }

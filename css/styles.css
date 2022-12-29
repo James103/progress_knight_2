@@ -78,7 +78,7 @@ td {
     color: rgb(245, 119, 13);
 }
 
-.effect {
+.next-effect {
     margin-bottom: 0.8rem;
 }
 
@@ -161,7 +161,7 @@ td {
     background-color: white;
     text-align: center;
     width: 93%;
-    height: 1.8em;
+    min-height: 1.8em;
     padding: 0;
 }
 
@@ -334,12 +334,12 @@ button:focus {
 }
 
 .plain-tab-column {
-    width: 137em;
+    width: 164em;
     height: auto;
 }
 
 .plain-main-column {
-    width: 137em;
+    width: 164em;
     height: auto;
     float: right;
     margin-bottom: 4em;

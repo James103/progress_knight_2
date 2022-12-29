@@ -8,17 +8,17 @@
 	<link rel="stylesheet" type="text/css" href="css/dark.css">
 	<link rel="stylesheet" type="text/css" href="css/colorblind.css">
 	<link rel="stylesheet" type="text/css" href="css/currencies.css">
-	<title>Progress Knight Quest</title>
+	<title>Progress Knight Quest BE</title>
 	<link rel="shortcut icon" href="img/logo.ico" />
 </head>
 <body id="body" class="dark" style="font-size: x-small">
 	<div class="w3-margin">
 		<div class="header">
 			<img src="img/logos.png" alt="logos" />
-			<h3>Progress Knight Quest</h3>
+			<h3>Progress Knight Quest <abbr title="Break Eternity Edition">BE</abbr></h3>
 		</div>
 		<div id="row" class="row">
-			<div id="info" class="panel w3-padding quick-bar" style="width:20em">
+			<div id="info" class="panel w3-padding quick-bar" style="width:22em">
 				<div id="challengeTitle" class="challenge-title" hidden="hidden">
 					In challenge: <span id="challengeName"></span>
 					<div style="padding-top:0.3em">
@@ -40,7 +40,7 @@
 				</div>
 				<div class="text-caption"><span id="ageDisplay">Age 14 Day 0</span></div>
 				<div class="sidebar-element" style="color: gray">
-					Lifespan: <span id="lifespanDisplay">70</span> years
+					Lifespan: <span id="lifespanDisplay">70</span>
 					<br>Real Time: <span id="realtimeDisplay">00:00:00</span>
 					<div id="fps"></div>
 				</div>
@@ -125,13 +125,13 @@
 					<button class="w3-button button" style="margin-bottom: 0.1em; margin-top: 0.8em; width: 100%" onClick="rebirthOne()">Touch the eye</button>
 				</div>
 				<div id="rebirthButton2" class="hidden">
-					<button class="w3-button button" style="margin-bottom: 0.1em; margin-top: 0.8em; width: 100% " onClick="rebirthTwo()">Embrace evil: <span class="color-evil" id="evilGainButtonDisplay"></span></button>
+					<button class="w3-button button" style="margin-bottom: 0.1em; margin-top: 0.8em; width: 100% " onClick="rebirthTwo()">Embrace: <span class="color-evil" id="evilGainButtonDisplay"></span></button>
 				</div>
 				<div id="rebirthButton3" class="hidden">
 					<button class="w3-button button" style="margin-bottom: 0.1em; margin-top: 0.8em; width: 100% " onClick="rebirthThree()">Transcend: <span class="color-essence" id="essenceGainButtonDisplay"></span></button>
 				</div>
 				<div id="rebirthButton4" class="hidden">
-					<button class="w3-button button" style="margin-bottom: 0.1em; margin-top: 0.8em; width: 100% " onClick="rebirthFour()">Collapse the universe: <span class="color-dark-matter" id="darkMatterGainButtonDisplay"></span></button>
+					<button class="w3-button button" style="margin-bottom: 0.1em; margin-top: 0.8em; width: 100% " onClick="rebirthFour()">Collapse: <span class="color-dark-matter" id="darkMatterGainButtonDisplay"></span></button>
 				</div>
 				<div id="rebirthButton5" class="hidden">
 					<button class="w3-button button" style="margin-bottom: 0.1em; margin-top: 0.8em; width: 100% " onClick="rebirthFive()">Metaverse: <span id="metaversePerkPointsGainButtonDisplay"></span></button>
@@ -157,8 +157,8 @@
 								<th class="rowtitle category" style="width: 20em">Job</th>
 								<th class="rowtitle">Level</th>
 								<th class="rowtitle valueType" style="width: 18em">Value type</th>
-								<th class="rowtitle">XP</th>
-								<th class="rowtitle">XP&nbsp;left</th>
+								<th class="rowtitle" style="min-width: 5em">XP/day</th>
+								<th class="rowtitle xpLeft">XP&nbsp;left</th>
 								<th class="rowtitle maxLevel">Max</th>
 							</tr>
 						</template>
@@ -181,7 +181,7 @@
 										<span></span>
 									</div>
 								</td>
-								<td class="xpGain">Xp</td>
+								<td class="xpGain">Xp/d</td>
 								<td class="xpLeft">Xp left</td>
 								<td class="maxLevel">Max</td>
 							</tr>
@@ -257,7 +257,7 @@
 									<span class="darkMatter color-dark-matter"></span>
 									<span class="hypercube color-hypercubes"></span>
 								</div>
-								<div class="effect">
+								<div class="effect next-effect">
 									<span class="w3-text-gray">Next effect:</span> <span class="effectValue"></span>
 								</div>
 							</td>
@@ -428,18 +428,18 @@
 								<div id="rebirthPage" class="panel page-column">
 									<ul>
 										<li id="rebirthNote0" class="hidden">
-											You stumble across a strange looking amulet on your <span id="age0"></span>th birthday. It does not look like
+											You stumble across a strange looking amulet on your <span id="age0"></span> birthday. It does not look like
 											it has any worth on the market given that it's made from cheap-looking copper. However, you
 											feel a weird urge to keep the amulet, so you slip it into your pocket for safekeeping.
 										</li>
 										<li id="rebirthNote1" class="hidden">
-											On your <span id="age1"></span>th birthday, you feel the amulet shiver uncontrollably in your pocket. You take it
+											On your <span id="age1"></span> birthday, you feel the amulet shiver uncontrollably in your pocket. You take it
 											out and the constant shivering suddenly stops. More to your bizarre surprise, you notice
 											a strange etching on the centre of the amulet.
 										</li>
 										<li id="rebirthNote2" class="hidden">
 											<div style="margin-bottom: 0.4em">
-												On your <span id="age1a"></span>th birthday, you once again encounter the strange, unexplained shivering from your
+												On your <span id="age1a"></span> birthday, you once again encounter the strange, unexplained shivering from your
 												amulet. But this time, a living eyeball emerges from the centre. Although terribly frightened,
 												you realise you do not have many years to live left anyway so you consider touching the eye
 												to see what happens.
@@ -474,7 +474,7 @@
 										</li>
 										<li id="rebirthNote4" class="hidden">
 											<div style="margin-bottom: 0.4em;">
-												A <span id="age3a"></span> years have come and gone and yet, you still remain alive... somehow. You feel your amulet shivering again and to your surprise, you see small tendrils
+												<span id="age3a"></span> years have come and gone and yet, you still remain alive... somehow. You feel your amulet shivering again and to your surprise, you see small tendrils
 												full of eyeballs emergin from it. As you are about to drop the amulet, you hear frightening screech followed by whispers in your head... <b>"You have to embrace the Void..."</b>
 												<br>
 												<span class="color-evil">
@@ -559,13 +559,13 @@
 									</div>
 									<div style="padding-top:2em">
 										<div class="text-caption dark-matter-title">Dark Orb Generator</div>
-										<div style="color:gray; padding-bottom:0.3em">Generates <b id="darkOrbGenerator"></b> <span class="color-dark-orbs">Dark Orb</span> per day</div>
+										<div style="color:gray; padding-bottom:0.3em">Generates <b id="darkOrbGenerator"></b> <span class="color-dark-orbs">Dark Orbs</span> per day<span id="darkOrbCapText">, with a limit of <b id="darkOrbCap"></b> <span class="color-dark-orbs">Dark Orbs</span></span>.</div>
 										<div style="color:gray; padding-bottom: 0.5em;">Cost: <b id="darkOrbGeneratorCost"></b> <span class="color-dark-matter">Dark Matter</span></div>
 										<button class="w3-button button" id="darkOrbGeneratorBuyButton" onclick="buyDarkOrbGenerator()">Upgrade</button>
 									</div>
 									<div style="padding-top:2em">
 										<div class="text-caption dark-matter-title">A miracle</div>
-										<div style="color:gray; padding-bottom:0.3em">Keep <b>Magic Eye</b> when performing a Dark Matter or lower reset</div>
+										<div style="color:gray; padding-bottom:0.3em">Keep <b>Magic Eye</b> when performing a Dark Matter or lower reset. Furthermore, your heroes and skills level up <b>smoothly and continuously</b>.</div>
 										<div id="aMiracleCost" style="color:gray; padding-bottom: 0.5em;">Cost: <b>10</b> <span class="color-dark-matter">Dark Matter</span></div>
 										<button class="w3-button button" id="aMiracleBuyButton" onclick="buyAMiracle()">Buy</button>
 									</div>
@@ -984,10 +984,11 @@
 			</div>
 		</div>
 	</div>
+	<script type="text/javascript" src="js/break_eternity.js"></script>
+	<script type="text/javascript" src="js/number_formatting.js"></script>
 	<script type="text/javascript" src="js/utils.js"></script>
 	<script type="text/javascript" src="js/ui.js"></script>
 	<script type="text/javascript" src="js/math.js"></script>
-	<script type="text/javascript" src="js/HackTimer.js"></script>
 	<script type="text/javascript" src="js/classes.js"></script>
 	<script type="text/javascript" src="js/evilperks.js"></script>
 	<script type="text/javascript" src="js/challenges.js"></script>

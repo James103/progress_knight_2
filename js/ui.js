@@ -89,14 +89,14 @@ function renderSideBar() {
     const quickTaskDisplayElement = document.getElementById("quickTaskDisplay")
 
     const progressBar = quickTaskDisplayElement.getElementsByClassName("job")[0]
-    progressBar.querySelector(".name").textContent = (task.isHero ? "Great " : "") + task.name + " lvl " + formatLevel(task.level)
+    progressBar.querySelector(".name").textContent = (task.isHero ? "Great " : "") + task.name + " lvl " + formatLevel(task.getLevel())
     const progressFill = progressBar.getElementsByClassName("progressFill")[0]
     renderProgressBar(task, progressFill, progressBar)   
 
     document.getElementById("ageDisplay").textContent = formatAge(gameData.days)
-    document.getElementById("lifespanDisplay").textContent = formatWhole(daysToYears(getLifespan()))
-    document.getElementById("realtimeDisplay").textContent = formatTime(gameData.realtime)
-    document.getElementById("boostCooldownDisplay").textContent = getBoostCooldownString()            
+    document.getElementById("lifespanDisplay").textContent = formatLifespan(getLifespan())
+    document.getElementById("realtimeDisplay").textContent = formatTime(gameData.realtime, !isAlive() || tempData.devSpeed < 1)
+    document.getElementById("boostCooldownDisplay").textContent = getBoostCooldownString()
     document.getElementById("pauseButton").textContent = gameData.paused ? "Play" : "Pause"
     document.getElementById("boostPanel").hidden = gameData.rebirthFiveCount == 0
     renderBoostButton("boostButton")
@@ -123,26 +123,26 @@ function renderSideBar() {
 
     document.getElementById("darkOrbsDisplay").textContent = formatTreshold(gameData.dark_orbs)
 
-    document.getElementById("timeWarping").hidden = (getUnpausedGameSpeed() / baseGameSpeed) <= 1
-    document.getElementById("timeWarpingDisplay").textContent = "x" + format(getUnpausedGameSpeed() / baseGameSpeed, 2)
+    document.getElementById("timeWarping").hidden = (getUnpausedGameSpeed().div(baseGameSpeed)).lte(1)
+    document.getElementById("timeWarpingDisplay").textContent = "x" + format(getUnpausedGameSpeed().div(baseGameSpeed), 2)
 
     document.getElementById("hypercubesDisplay").textContent = formatTreshold(gameData.hypercubes)
 
 
-    document.getElementById("hypercubeCapText").hidden = gameData.rebirthFiveCount == 0 || getTotalPerkPoints() > 0
+    document.getElementById("hypercubeCapText").hidden = gameData.rebirthFiveCount == 0 || getTotalPerkPoints().gt(0)
     document.getElementById("hypercubeCapDisplay").textContent = format(getHypercubeCap(1))
 
-    document.getElementById("perkPointsGainText").hidden = gameData.essence < 1e90        
+    document.getElementById("perkPointsGainText").hidden = gameData.essence.lt(1e90)
     document.getElementById("perkPointsGainDisplay").textContent = formatTreshold(getMetaversePerkPointsGain())
 
     const rebirth5button = document.getElementById("metaversePerkPointsGainButtonDisplay")
 
-    if (gameData.essence > 1e90) {
+    if (gameData.essence.gt(1e90)) {
         rebirth5button.textContent = "+" + formatTreshold(getMetaversePerkPointsGain())
         rebirth5button.classList.add("color-perk-points")
         rebirth5button.classList.remove("color-hypercubes")
     }
-    else if (gameData.rebirthFiveCount > 0) {
+    else if (gameData.rebirthFiveCount.gt(0)) {
         rebirth5button.textContent = format(getHypercubeCap(1))
         rebirth5button.classList.remove("color-perk-points")
         rebirth5button.classList.add("color-hypercubes")
@@ -151,7 +151,7 @@ function renderSideBar() {
         rebirth5button.textContent = "Unlock Hypercubes"
     }
 
-    document.getElementById("rebirthButton5").hidden = getHypercubeCap() == Infinity && gameData.essence < 1e90
+    document.getElementById("rebirthButton5").hidden = getHypercubeCap().gte(1e308) && gameData.essence.lt(1e90)
 
     // Embrace evil indicator
     const embraceEvilButton = document.getElementById("rebirthButton2").querySelector(".button")
@@ -167,8 +167,10 @@ function renderSideBar() {
     else
         transcendButton.classList.remove("button-transcend")
 
-    // Hide the rebirthOneButton from the sidebar when you have `Almighty Eye` unlocked.
-    document.getElementById("rebirthButton1").hidden = gameData.requirements["Almighty Eye"].isCompleted()
+    // Hide the rebirthOneButton from the sidebar when you have `Almighty Eye` unlocked or when Continuum is unlocked
+    // Except if you somehow reached end of lifespan before being able to embrace evil
+    const hideRebirthButton1 = (gameData.requirements["Almighty Eye"].isCompleted() || gameData.dark_matter_shop.continuum_unlock) && (isAlive() || gameData.requirements["Rebirth button 2"].isCompleted())
+    document.getElementById("rebirthButton1").hidden = hideRebirthButton1
 
     // Change sidebar when paused
     if (gameData.paused) {
@@ -190,25 +192,20 @@ function renderSideBar() {
         renderCurrentChallengeRewardValue(true)
     }
 
-    if (getDarkMatter() == 0)
+    if (getDarkMatter().eq(0))
         gameData.requirements["Dark Matter info"].completed = false
 }
 
 function renderProgressBar(task, progressFill, progressBar){
     if (task.isFinished) {
-        let width = 0
-        if (task.level > 10000) {
-            width = task.level % 100
-        }
-        else {
-            width = 100n * task.xpBigInt / task.getMaxBigIntXp()
-            if (width > 100n)
-                width = 100n
-        }        
-        progressFill.style.width = width + "%"
+        progressFill.style.width = "100%"
+        var time = new Date().getTime() / 3000
+        var x = time - Math.floor(time)
+        x = (x < 0.5 ? x : 1 - x) * 2;
+        progressFill.style.opacity = x
     }
     else
-        progressFill.style.width = task.xp / task.getMaxXp() * 100 + "%"
+        progressFill.style.width = getTaskProgress(task) * 100 + "%"
 
     if (task.isHero) {
         progressFill.classList.add("progress-fill-hero")
@@ -251,7 +248,7 @@ function renderJobs() {
 
         const row = getRowByName(task.name)
 
-        task.querySelector(".level", row).textContent = formatLevel(task.level)
+        task.querySelector(".level", row).textContent = formatLevel(task.getLevel())
         task.querySelector(".xpGain", row).textContent = task.getXpGainFormatted()
         task.querySelector(".xpLeft", row).textContent = task.getXpLeftFormatted()
 
@@ -267,7 +264,9 @@ function renderJobs() {
 
         const maxLevel = row.getElementsByClassName("maxLevel")[0]
         maxLevel.textContent = formatLevel(task.maxLevel)
-        gameData.rebirthOneCount > 0 ? maxLevel.classList.remove("hidden") : maxLevel.classList.add("hidden")
+        
+        const hideMaxLevelColumn = gameData.dark_matter_shop.continuum_unlock || gameData.rebirthOneCount == 0
+        hideMaxLevelColumn ? maxLevel.classList.add("hidden") : maxLevel.classList.remove("hidden")
 
         const progressBar = task.querySelector(".progressBar", row)
         progressBar.querySelector(".name").textContent = (task.isHero ? "Great " : "") + task.name
@@ -290,7 +289,7 @@ function renderSkills() {
 
         const row = getRowByName(task.name)
 
-        task.querySelector(".level", row).textContent = formatLevel(task.level)
+        task.querySelector(".level", row).textContent = formatLevel(task.getLevel())
         task.querySelector(".xpGain", row).textContent = task.getXpGainFormatted()
         task.querySelector(".xpLeft", row).textContent = task.getXpLeftFormatted()
 
@@ -306,7 +305,9 @@ function renderSkills() {
 
         const maxLevel = task.querySelector(".maxLevel", row)
         maxLevel.textContent = formatLevel(task.maxLevel)
-        gameData.rebirthOneCount > 0 ? maxLevel.classList.remove("hidden") : maxLevel.classList.add("hidden")
+        
+        const hideMaxLevelColumn = gameData.dark_matter_shop.continuum_unlock || gameData.rebirthOneCount == 0
+        hideMaxLevelColumn ? maxLevel.classList.add("hidden") : maxLevel.classList.remove("hidden")
 
         const progressBar = task.querySelector(".progressBar", row)
         progressBar.querySelector(".name").textContent = (task.isHero ? "Great " : "") + task.name
@@ -326,7 +327,7 @@ function renderShop() {
         const item = gameData.itemData[key]
         const row = getRowByName(item.name)
         const button = row.querySelector(".button")
-        button.disabled = gameData.coins < item.getExpense()
+        button.disabled = gameData.coins.lt(item.getExpense())
         const name = button.querySelector(".name")
 
         if (isHeroesUnlocked())
@@ -347,52 +348,60 @@ function renderShop() {
 
 function renderRebirth() {
 
-    document.getElementById("age0").textContent = getAge0Requirement() 
-    document.getElementById("age1").textContent = getAge1Requirement() 
-    document.getElementById("age1a").textContent = getEyeRequirement()
+    document.getElementById("age0").textContent = formatOrdinal(getAge0Requirement())
+    document.getElementById("age1").textContent = formatOrdinal(getAge1Requirement())
+    document.getElementById("age1a").textContent = formatOrdinal(getEyeRequirement())
 
     const age2req = getEvilRequirement()
     let age2 = ""
-    if (age2req == 200)
+    if (age2req.eq(200))
         age2 = "2 whole centuries"
-    else if (age2req == 100)
-        age2 = "1 century"
+    else if (age2req.eq(100))
+        age2 = "a century"
     else
-        age2 = age2req + " years"
+        age2 = formatTreshold(age2req) + " years"
 
     document.getElementById("age2").textContent = age2 
-    document.getElementById("age2a").textContent = age2req
+    document.getElementById("age2a").textContent = formatTreshold(age2req)
 
 
     const age3req = getVoidRequirement()
     let age3 = ""
-    if (age3req == 1000)
+    let age3centuries = age3req.div(100)
+    if (age3req.eq(1000))
         age3 = "a millennium"
-    else if (age3req > 100)
-        age3 = (age3req / 100) + " whole centuries"
+    else if (age3req.gt(100) && age3req.lt(1000) && age3centuries.floor().eq(age3centuries))
+        age3 = formatTreshold(age3centuries) + " whole centuries"
+    else if (age3req.eq(100))
+        age3 = "a century"
     else
-        age3 = "1 century"
+        age3 = formatTreshold(age3req) + " years"
     document.getElementById("age3").textContent = age3 
 
     var ones = new Array('', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten');
 
     let age3a = ""
-    if (age3req == 1000)
-        age3a = "thousand "
+    if (age3req.eq(1000))
+        age3a = "A thousand "
+    else if (age3req.gt(100) && age3req.lt(1000) && age3centuries.floor().eq(age3centuries))
+        age3a = ones[age3centuries.toNumber()].charAt(0).toUpperCase() + ones[age3centuries.toNumber()].slice(1) + " hundred "
     else
-        age3a = ones[age3req / 100] + " hundred "    
+        age3a = formatTreshold(age3req) + " "
 
     document.getElementById("age3a").textContent = age3a
 
     const age4req = getCelestialRequirement()
+    let age4millennia = age4req.div(1000)
     let age4 = ""
-    if (age4req == 1000)
+    if (age4req.eq(1000))
         age4 = "a millennium"
+    else if (age4req.gt(1000) && age4req.lte(10000) && age4millennia.floor().eq(age4millennia))
+        age4 = ones[age4millennia.floor().toNumber()] + " millennia"
     else
-        age4 = ones[age4req / 1000] + " millennia"    
+        age4 = formatTreshold(age4req) + " years"
 
     document.getElementById("age4").textContent = age4    
-    document.getElementById("age4a").textContent = age4.charAt(0).toUpperCase() + age4.slice(1)   
+    document.getElementById("age4a").textContent = age4.charAt(0).toUpperCase() + age4.slice(1)
 }
 
 function renderEvilPerks() {
@@ -400,20 +409,19 @@ function renderEvilPerks() {
     document.getElementById("evilperksDisplay").textContent = format(gameData.evil_perks_points)
     document.getElementById("evilperksGainDisplay").textContent = format(getEvilPerksGeneration() * 365)
 
-    document.getElementById("eyeReq").textContent = getEyeRequirement()
+    document.getElementById("eyeReq").textContent = formatTreshold(getEyeRequirement())
     document.getElementById("eyeReduceCount").textContent = format(gameData.evil_perks.reduce_eye_requirement, 0)
     document.getElementById("evilperkCost1").textContent = format(getEvilPerkCost(1))
 
-
-    document.getElementById("evilReq").textContent = getEvilRequirement()
+    document.getElementById("evilReq").textContent = formatTreshold(getEvilRequirement())
     document.getElementById("evilReduceCount").textContent = format(gameData.evil_perks.reduce_evil_requirement, 0)
     document.getElementById("evilperkCost2").textContent = format(getEvilPerkCost(2))
 
-    document.getElementById("voidManipulationReq").textContent = getVoidRequirement()
+    document.getElementById("voidManipulationReq").textContent = formatTreshold(getVoidRequirement())
     document.getElementById("voidManipulationReduceCount").textContent = format(gameData.evil_perks.reduce_the_void_requirement, 0)
     document.getElementById("evilperkCost3").textContent = format(getEvilPerkCost(3))
 
-    document.getElementById("celestialReq").textContent = getCelestialRequirement()
+    document.getElementById("celestialReq").textContent = formatTreshold(getCelestialRequirement())
     document.getElementById("celestialReduceCount").textContent = format(gameData.evil_perks.reduce_celestial_requirement, 0)
     document.getElementById("evilperkCost4").textContent = format(getEvilPerkCost(4))
     
@@ -423,7 +431,7 @@ function renderEvilPerks() {
     document.getElementById("evilperkCost5").textContent = format(getEvilPerkCost(5))
     
     for (var i = 1; i <= 5; i++) {
-        if (gameData.evil_perks_points >= getEvilPerkCost(i)){
+        if (gameData.evil_perks_points.gte(getEvilPerkCost(i))){
             document.getElementById("evilperk"+i).classList.remove("evilperkoff")
             document.getElementById("evilperk"+i).classList.remove("evilperkbought")
         }
@@ -465,15 +473,15 @@ function renderChallenges() {
     formatCoins(getChallengeGoal("rich_and_the_poor"), document.getElementById("challengeGoal2"))
     document.getElementById("challengeGoal3").textContent = format(getChallengeGoal("time_does_not_fly"))
     document.getElementById("challengeGoal4").textContent = format(getChallengeGoal("dance_with_the_devil"))
-    document.getElementById("challengeGoal5").textContent = getFormattedChallengeTaskGoal("Chairman", Math.floor(getChallengeGoal("legends_never_die")))
-    document.getElementById("challengeGoal6").textContent = getFormattedChallengeTaskGoal("Sigma Proioxis", Math.floor(100*(getChallengeGoal("the_darkest_time")-1)))
+    document.getElementById("challengeGoal5").textContent = getFormattedChallengeTaskGoal("Chairman", Decimal.floor(getChallengeGoal("legends_never_die")))
+    document.getElementById("challengeGoal6").textContent = getFormattedChallengeTaskGoal("Sigma Proioxis", Decimal.floor((getChallengeGoal("the_darkest_time").sub(1)).times(100)))
 
-    document.getElementById("challengeReward1").hidden = gameData.challenges.an_unhappy_life == 0
-    document.getElementById("challengeReward2").hidden = gameData.challenges.rich_and_the_poor == 0
-    document.getElementById("challengeReward3").hidden = gameData.challenges.time_does_not_fly == 0
-    document.getElementById("challengeReward4").hidden = gameData.challenges.dance_with_the_devil == 0
-    document.getElementById("challengeReward5").hidden = gameData.challenges.legends_never_die == 0
-    document.getElementById("challengeReward6").hidden = gameData.challenges.the_darkest_time == 0
+    document.getElementById("challengeReward1").hidden = gameData.challenges.an_unhappy_life.eq(0)
+    document.getElementById("challengeReward2").hidden = gameData.challenges.rich_and_the_poor.eq(0)
+    document.getElementById("challengeReward3").hidden = gameData.challenges.time_does_not_fly.eq(0)
+    document.getElementById("challengeReward4").hidden = gameData.challenges.dance_with_the_devil.eq(0)
+    document.getElementById("challengeReward5").hidden = gameData.challenges.legends_never_die.eq(0)
+    document.getElementById("challengeReward6").hidden = gameData.challenges.the_darkest_time.eq(0)
 
     renderCurrentChallengeRewardValue()
 
@@ -483,8 +491,6 @@ function renderChallenges() {
     document.getElementById("challengeEssenceGainBuff").textContent = format(getChallengeBonus("dance_with_the_devil"), 2)
     document.getElementById("challengeEvilGainBuff").textContent = format(getChallengeBonus("legends_never_die"), 2)
     document.getElementById("challengeDarkMatterGainBuff").textContent = format(getChallengeBonus("the_darkest_time"), 2)
-
-    document.getElementById("challenge5MetaverseLifespanDebuff").hidden = gameData.rebirthFiveCount == 0
 }
 
 function renderCurrentChallengeReward(blockclass) {
@@ -493,7 +499,7 @@ function renderCurrentChallengeReward(blockclass) {
         if (elementReward.classList.contains(gameData.active_challenge)) {
             elementReward.classList.remove("hidden")
 
-            if (getChallengeBonus(gameData.active_challenge, true) > getChallengeBonus(gameData.active_challenge))
+            if (getChallengeBonus(gameData.active_challenge, true).gt(getChallengeBonus(gameData.active_challenge)))
                 elementReward.classList.add("reward")
             else
                 elementReward.classList.remove("reward")
@@ -563,11 +569,11 @@ function renderMetaverse() {
 
     for (var i = 0; i < 3; i++) {
         const elem = document.getElementById("timeTillNextHypercubePower" + (i + 1))
-        const nextH = getNextPowerOfNumber(gameData.hypercubes * Math.pow(10, i))
+        const nextH = getNextPowerOfNumber(gameData.hypercubes.times(Decimal.pow(10, i)))
         elem.textContent =
             format(nextH) + " Hypercubes in " + formatTime(getTimeTillNextHypercubePower(i))
         if (i>0)
-            elem.hidden = nextH > getHypercubeCap() || gameData.perks_points == 0 || gameData.hypercubes < 1e20 * Math.pow(10, i)
+            elem.hidden = nextH.gt(getHypercubeCap()) || gameData.perks_points.eq(0) || gameData.hypercubes.lt(Decimal.pow(10, i).times(1e20))
         else
             elem.hidden = false
     }
@@ -575,10 +581,11 @@ function renderMetaverse() {
     renderBoostButton("boostMetaButton")
 
     document.getElementById("hypercubesMetaDisplay").textContent = format(gameData.hypercubes)
-    document.getElementById("hypercubesBonusMetaDisplay").textContent = "x" + format(getHypercubeGeneration() / 0.03)
+    document.getElementById("hypercubesBonusMetaDisplay").textContent = "x" + format(getHypercubeGeneration().div(0.03))
     document.getElementById("boostCooldownMetaDisplay").textContent = getBoostCooldownString()  
 
-    document.getElementById("reduceBoostCooldown").textContent = formatTime(getBoostCooldownSeconds())
+    let boost_cooldown = getBoostCooldownSeconds()
+    document.getElementById("reduceBoostCooldown").textContent = formatTime(boost_cooldown, boost_cooldown.lt(10))
     document.getElementById("reduceBoostCooldownCost").textContent = format(reduceBoostCooldownCost())
     document.getElementById("reduceBoostCooldownBuyButton").disabled = !canBuyReduceBoostCooldown()
 
@@ -586,7 +593,7 @@ function renderMetaverse() {
     document.getElementById("boostDurationCost").textContent = format(boostDurationCost())
     document.getElementById("boostDurationBuyButton").disabled = !canBuyBoostDuration()
 
-    document.getElementById("hypercubeGain").textContent = format(getHypercubeGeneration() * getUnpausedGameSpeed(),2)
+    document.getElementById("hypercubeGain").textContent = format(getHypercubeGeneration().times(getUnpausedGameSpeed()), 2)
     document.getElementById("hypercubeGainCost").textContent = format(hypercubeGainCost())
     document.getElementById("hypercubeGainBuyButton").disabled = !canBuyHypercubeGain()
 
@@ -652,7 +659,7 @@ function renderPerks() {
 
             const perk_cost = getPerkCost(key)
 
-            if (total_mpp >= perk_cost) {
+            if (Decimal.gte(total_mpp, perk_cost)) {
                 button.getElementsByClassName("perkName")[0].textContent = getMetaversePerkName(key)
                 button.classList.remove("perk-locked")
             }
@@ -672,6 +679,14 @@ function renderDarkMatter() {
     document.getElementById("darkMatterShopDisplay").textContent = format(gameData.dark_matter)
     document.getElementById("darkMatterSkillsDisplay").textContent = gameData.settings.layout == 0 ? "" : format(gameData.dark_matter)    
     document.getElementById("darkOrbsShopDisplay").textContent = formatTreshold(gameData.dark_orbs)
+
+    let darkOrbCap = getDarkOrbCap();
+    if (darkOrbCap.isFinite()) {
+        document.getElementById("darkOrbCapText").hidden = false
+        document.getElementById("darkOrbCap").textContent = format(darkOrbCap)
+    } else {
+        document.getElementById("darkOrbCapText").hidden = true
+    }
 
     // Dark Matter Shop
     document.getElementById("darkOrbGeneratorCost").textContent = format(getDarkOrbGeneratorCost())
@@ -694,7 +709,7 @@ function renderDarkMatter() {
     else
         document.getElementById("aMiracleBuyButton").classList.remove("hidden")
 
-    if (getDarkOrbGeneration() != Infinity)
+    if (getDarkOrbGeneration().lt(getDarkOrbGenerationCap()))
         document.getElementById("darkOrbGeneratorBuyButton").classList.remove("hidden")
     else
         document.getElementById("darkOrbGeneratorBuyButton").classList.add("hidden")
@@ -709,20 +724,20 @@ function renderDarkMatter() {
     renderDarkMatterShopButton("lifeCoachBuyButton", canBuyLifeCoach())
 
     // Dark Matter Ability tree
-    renderSkillTreeButton(document.getElementById("speedIsLife1"), gameData.dark_matter_shop.speed_is_life != 0, [1, 3].includes(gameData.dark_matter_shop.speed_is_life), gameData.dark_matter >= 100)
-    renderSkillTreeButton(document.getElementById("speedIsLife2"), gameData.dark_matter_shop.speed_is_life != 0, [2, 3].includes(gameData.dark_matter_shop.speed_is_life), gameData.dark_matter >= 100)
+    renderSkillTreeButton(document.getElementById("speedIsLife1"), gameData.dark_matter_shop.speed_is_life != 0, [1, 3].includes(gameData.dark_matter_shop.speed_is_life), gameData.dark_matter.gte(100))
+    renderSkillTreeButton(document.getElementById("speedIsLife2"), gameData.dark_matter_shop.speed_is_life != 0, [2, 3].includes(gameData.dark_matter_shop.speed_is_life), gameData.dark_matter.gte(100))
 
-    renderSkillTreeButton(document.getElementById("yourGreatestDebt1"), gameData.dark_matter_shop.your_greatest_debt != 0, [1, 3].includes(gameData.dark_matter_shop.your_greatest_debt), gameData.dark_matter >= 1000)
-    renderSkillTreeButton(document.getElementById("yourGreatestDebt2"), gameData.dark_matter_shop.your_greatest_debt != 0, [2, 3].includes(gameData.dark_matter_shop.your_greatest_debt), gameData.dark_matter >= 1000)
+    renderSkillTreeButton(document.getElementById("yourGreatestDebt1"), gameData.dark_matter_shop.your_greatest_debt != 0, [1, 3].includes(gameData.dark_matter_shop.your_greatest_debt), gameData.dark_matter.gte(1000))
+    renderSkillTreeButton(document.getElementById("yourGreatestDebt2"), gameData.dark_matter_shop.your_greatest_debt != 0, [2, 3].includes(gameData.dark_matter_shop.your_greatest_debt), gameData.dark_matter.gte(1000))
 
-    renderSkillTreeButton(document.getElementById("essenceCollector1"), gameData.dark_matter_shop.essence_collector != 0, [1, 3].includes(gameData.dark_matter_shop.essence_collector), gameData.dark_matter >= 10000)
-    renderSkillTreeButton(document.getElementById("essenceCollector2"), gameData.dark_matter_shop.essence_collector != 0, [2, 3].includes(gameData.dark_matter_shop.essence_collector), gameData.dark_matter >= 10000)
+    renderSkillTreeButton(document.getElementById("essenceCollector1"), gameData.dark_matter_shop.essence_collector != 0, [1, 3].includes(gameData.dark_matter_shop.essence_collector), gameData.dark_matter.gte(10000))
+    renderSkillTreeButton(document.getElementById("essenceCollector2"), gameData.dark_matter_shop.essence_collector != 0, [2, 3].includes(gameData.dark_matter_shop.essence_collector), gameData.dark_matter.gte(10000))
 
-    renderSkillTreeButton(document.getElementById("explosionOfTheUniverse1"), gameData.dark_matter_shop.explosion_of_the_universe != 0, [1, 3].includes(gameData.dark_matter_shop.explosion_of_the_universe), gameData.dark_matter >= 100000)
-    renderSkillTreeButton(document.getElementById("explosionOfTheUniverse2"), gameData.dark_matter_shop.explosion_of_the_universe != 0, [2, 3].includes(gameData.dark_matter_shop.explosion_of_the_universe), gameData.dark_matter >= 100000)
+    renderSkillTreeButton(document.getElementById("explosionOfTheUniverse1"), gameData.dark_matter_shop.explosion_of_the_universe != 0, [1, 3].includes(gameData.dark_matter_shop.explosion_of_the_universe), gameData.dark_matter.gte(100000))
+    renderSkillTreeButton(document.getElementById("explosionOfTheUniverse2"), gameData.dark_matter_shop.explosion_of_the_universe != 0, [2, 3].includes(gameData.dark_matter_shop.explosion_of_the_universe), gameData.dark_matter.gte(100000))
 
-    renderSkillTreeButton(document.getElementById("multiverseExplorer1"), gameData.dark_matter_shop.multiverse_explorer != 0, [1, 3].includes(gameData.dark_matter_shop.multiverse_explorer), gameData.dark_matter >= 100000000)
-    renderSkillTreeButton(document.getElementById("multiverseExplorer2"), gameData.dark_matter_shop.multiverse_explorer != 0, [2, 3].includes(gameData.dark_matter_shop.multiverse_explorer), gameData.dark_matter >= 100000000)
+    renderSkillTreeButton(document.getElementById("multiverseExplorer1"), gameData.dark_matter_shop.multiverse_explorer != 0, [1, 3].includes(gameData.dark_matter_shop.multiverse_explorer), gameData.dark_matter.gte(100000000))
+    renderSkillTreeButton(document.getElementById("multiverseExplorer2"), gameData.dark_matter_shop.multiverse_explorer != 0, [2, 3].includes(gameData.dark_matter_shop.multiverse_explorer), gameData.dark_matter.gte(100000000))
 
     const effects = document.getElementsByClassName("negative-effect")
     for (const effect of effects) {
@@ -800,12 +815,12 @@ function renderSettings() {
     document.getElementById("maxEssencePerSecondRtDisplay").textContent = formatTime(gameData.stats.maxEssencePerSecondRt)
 
     // Challenge Stats
-    document.getElementById("challengeStat1").hidden = gameData.challenges.an_unhappy_life == 0
-    document.getElementById("challengeStat2").hidden = gameData.challenges.rich_and_the_poor == 0
-    document.getElementById("challengeStat3").hidden = gameData.challenges.time_does_not_fly == 0
-    document.getElementById("challengeStat4").hidden = gameData.challenges.dance_with_the_devil == 0
-    document.getElementById("challengeStat5").hidden = gameData.challenges.legends_never_die == 0
-    document.getElementById("challengeStat6").hidden = gameData.challenges.the_darkest_time == 0
+    document.getElementById("challengeStat1").hidden = gameData.challenges.an_unhappy_life.eq(0)
+    document.getElementById("challengeStat2").hidden = gameData.challenges.rich_and_the_poor.eq(0)
+    document.getElementById("challengeStat3").hidden = gameData.challenges.time_does_not_fly.eq(0)
+    document.getElementById("challengeStat4").hidden = gameData.challenges.dance_with_the_devil.eq(0)
+    document.getElementById("challengeStat5").hidden = gameData.challenges.legends_never_die.eq(0)
+    document.getElementById("challengeStat6").hidden = gameData.challenges.the_darkest_time.eq(0)
 
     document.getElementById("challengeHappinessBuffDisplay").textContent = format(getChallengeBonus("an_unhappy_life"), 2)
     document.getElementById("challengeIncomeBuffDisplay").textContent = format(getChallengeBonus("rich_and_the_poor"), 2)
@@ -832,8 +847,13 @@ function renderHeaderRows(categories) {
     for (const categoryName in categories) {
         const className = removeSpaces(categoryName)
         const headerRow = document.getElementsByClassName(className)[0]
+        const xpLeftElement = headerRow.querySelector(".xpLeft")
         const maxLevelElement = headerRow.querySelector(".maxLevel")
-        gameData.rebirthOneCount > 0 ? maxLevelElement.classList.remove("hidden") : maxLevelElement.classList.add("hidden")
+        
+        const hideMaxLevelColumn = gameData.dark_matter_shop.continuum_unlock || gameData.rebirthOneCount == 0
+        hideMaxLevelColumn ? maxLevelElement.classList.add("hidden") : maxLevelElement.classList.remove("hidden")
+        
+        xpLeftElement.innerHTML = gameData.dark_matter_shop.continuum_unlock ? "Total&nbsp;XP" : "XP&nbsp;left"
     }
 }
 
@@ -858,7 +878,7 @@ function createHeaderRow(templates, categoryType, categoryName) {
 
     if (categoryType == jobCategories || categoryType == skillCategories) {
         headerRow.getElementsByClassName("valueType")[0].textContent = categoryType == jobCategories ? "Income" : "Effect"
-        headerRow.getElementsByClassName("valueType")[0].style.width = categoryType == jobCategories ? "8em" : "18em"
+        headerRow.getElementsByClassName("valueType")[0].style.width = categoryType == jobCategories ? "10em" : "20em"
     }
 
     headerRow.style.backgroundColor = headerRowColors[categoryName]
@@ -995,8 +1015,8 @@ function updateRequiredRows(data, categoryType) {
                     levelElement.classList.remove("hiddenTask")
                     for (const requirement of requirements) {
                         const task = gameData.taskData[requirement.task]
-                        if (task.level >= requirement.requirement) continue
-                        finalText += " " + requirement.task + " " + formatLevel(task.level) + "/" + formatLevel(requirement.requirement) + ","
+                        if (task.getLevel().gte(requirement.requirement)) continue
+                        finalText += " " + requirement.task + " " + formatLevel(task.getLevel()) + "/" + formatLevel(requirement.requirement) + ","
                     }
                     finalText = finalText.substring(0, finalText.length - 1)
                     levelElement.textContent = finalText
@@ -1018,7 +1038,7 @@ function updateRequiredRows(data, categoryType) {
                 const milestone = milestoneData[nextEntity.name]
                 if (milestone.baseData.description != null) {
                     effectElement.classList.remove("hiddenTask")
-                    effectValueElement.textContent = (gameData.stats.maxEssenceReached > milestone.expense) ? milestone.baseData.description : "Unknown"
+                    effectValueElement.textContent = (gameData.stats.maxEssenceReached.gte(milestone.expense)) ? milestone.baseData.description : "Unknown"
                 }
             }
         }
@@ -1036,9 +1056,9 @@ function getHeroicRequiredTooltip(task) {
 
     if (prev != "") {
         var prevTask = gameData.taskData[prev]
-        var prevlvl = (prevTask.isHero ? prevTask.level : 0)
-        if (prevlvl < 20)
-            prevReq = "Great " + prev + " " + prevlvl + "/20<br>"
+        var prevlvl = (prevTask.isHero ? prevTask.getLevel() : decimalZero)
+        if (prevlvl.lt(20))
+            prevReq = "Great " + prev + " " + formatLevel(prevlvl) + "/" + formatLevel(20) + "<br>"
     }
 
     if (requirementObject instanceof EvilRequirement) {
@@ -1055,14 +1075,14 @@ function getHeroicRequiredTooltip(task) {
 
             const reqvalue = (requirement.herequirement == null ? requirement.requirement : requirement.herequirement)
 
-            if (task_check.isHero && task_check.level >= reqvalue) continue
+            if (task_check.isHero && task_check.getLevel().gte(reqvalue)) continue
             if (prev != "" && task_check.name == prevTask.name) {
-                if (reqvalue <= 20)
+                if (Decimal.lte(reqvalue, 20))
                     continue
                 else
-                    prevReq = " Great " + requirement.task + " " + (task_check.isHero ? task_check.level : 0) + "/" + reqvalue + "<br>"
+                    prevReq = " Great " + requirement.task + " " + formatLevel(task_check.isHero ? task_check.getLevel() : 0) + "/" + formatLevel(reqvalue) + "<br>"
             } else {
-                reqlist += " Great " + requirement.task + " " + (task_check.isHero ? task_check.level : 0) + "/" + reqvalue + "<br>"
+                reqlist += " Great " + requirement.task + " " + formatLevel(task_check.isHero ? task_check.getLevel() : 0) + "/" + formatLevel(reqvalue) + "<br>"
             }
         }
     }
@@ -1104,9 +1124,9 @@ function setLayout(id) {
 
         document.getElementById("jobs").appendChild(document.getElementById("skillPage"))
         document.getElementById("jobs").appendChild(document.getElementById("itemPage"))
-        document.getElementById("jobPage").style.flex = 0.88
-        document.getElementById("skillPage").style.flex = 1.13
-        document.getElementById("itemPage").style.flex = 0.82
+        document.getElementById("jobPage").style.flex = 1
+        document.getElementById("skillPage").style.flex = 1
+        document.getElementById("itemPage").style.flex = 0.8
     } else {
         document.getElementById("skillsTabButton").classList.remove("hidden")
         document.getElementById("shopTabButton").classList.remove("hidden")
@@ -1223,10 +1243,10 @@ function renderSkillTreeButton(element, categoryBought, elementBought, canBuy) {
 function setSignDisplay() {
     const signDisplay = document.getElementById("signDisplay")
 
-    if (getNet() > -1 && getNet() < 1) {
+    if (getNet().abs().lt(1)) {
         signDisplay.textContent = ""
         signDisplay.style.color = "gray"
-    } else if (getIncome() > getExpense()) {
+    } else if (getIncome().gt(getExpense())) {
         signDisplay.textContent = "+"
         signDisplay.style.color = "green"
     } else {
